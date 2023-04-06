@@ -1,0 +1,19 @@
+#!/bin/bash
+
+usage() {
+	echo "Usage: $0 [-k <kernel source directory>] [-t <target>]" 1>&2
+	exit 1
+}
+
+KDIR=../linux
+TARGET=
+
+while getopts k:t: option; do
+	case "$option" in
+	k) KDIR=${OPTARG} ;;
+	t) TARGET=${OPTARG} ;;
+	*) usage ;;
+	esac
+done
+
+make LLVM=1 CLIPPY=1 -C "$KDIR" M="$PWD" "$TARGET" -j"$(nproc)"
