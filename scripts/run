@@ -1,3 +1,62 @@
 #!/bin/bash
 
-# TODO: do.
+usage() {
+	echo "Usage: $0 [-b /path/to/busybox] [-k /path/to/kernel]"
+}
+
+requires() {
+  for i in "$@"; do
+    if ! command -v "$i" &> /dev/null; then
+      echo "Error: $i is required but not installed."
+      exit 1
+    fi
+  done
+}
+
+# Dependencies
+requires qemu-system-x86_64 cpio gzip
+
+BUSYBOX=../busybox
+KERNEL=../linux
+
+# ./scripts/run -b /path/to/busybox -k /path/to/kernel
+while getopts "b:k:" opt; do
+	case $opt in
+	b)
+		BUSYBOX=$OPTARG
+		;;
+	k)
+		KERNEL=$OPTARG
+		;;
+	\?)
+		echo "Invalid option: -$OPTARG" >&2
+		exit 1
+		;;
+	:)
+		echo "Option -$OPTARG requires an argument." >&2
+		exit 1
+		;;
+	esac
+done
+
+# First, whe should build copy all of the .ko files to the busybox/_install directory so that they can be loaded
+# by the kernel.
+find "$KERNEL" -name "*.ko" -exec cp {} "$BUSYBOX"/_install/lib/modules/ \;
+
+# now, we generate the initramfs
+pushd "$BUSYBOX"/_install || exit
+find . | cpio -o -H newc | gzip -9 > ../initramfs.img
+
+popd || exit
+
+# now, we run the kernel in qemu
+qemu-system-x86_64 \
+	-kernel "$KERNEL"/vmlinux \
+	-initrd "$BUSYBOX"/initramfs.img \
+	-nographic \
+	-machine q35 \
+	-enable-kvm \
+	-device intel-iommu \
+	-cpu host \
+	-m 4G \
+	-net nic -nic user,model=rtl8139,hostfwd=tcp::5555-:23,hostfwd=tcp::5556-:8080
