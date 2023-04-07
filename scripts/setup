@@ -28,9 +28,12 @@ setup_rust_in_kernel() {
 setup_kernel() {
 	# setup the kernel
 	cd "$KERNEL" || exit
-	make LLVM=1 CLIPPY=1 rustavailable
-	make LLVM=1 CLIPPY=1 defconfig qemu-busybox-min.config rust.config
-	yes "" | make LLVM=1 CLIPPY=1 -j"$(nproc)"
+	# patch the kernel to use the rust-analyzer for out of tree modules
+	git apply "$CURRENT_DIR"/assets/rust_analyzer_external_modules.patch
+	setup_rust_in_kernel || exit
+	make LLVM=1 CLIPPY=1 rustavailable || exit
+	make LLVM=1 CLIPPY=1 defconfig qemu-busybox-min.config rust.config || exit
+	yes "" | make LLVM=1 CLIPPY=1 -j"$(nproc)" || exit
 }
 
 setup_busybox() {
@@ -39,9 +42,9 @@ setup_busybox() {
 	yes "" | make defconfig
 	sed -i 's/.*CONFIG_STATIC.*/CONFIG_STATIC=y/' .config
 	sed -i 's/.*CONFIG_STATIC_LIBGCC.*/CONFIG_STATIC_LIBGCC=y/' .config
-  yes "" | make oldconfig
+	yes "" | make oldconfig
 	yes "" | make -j"$(nproc)"
-  make install
+	make install
 }
 
 config_rootfs() {
@@ -61,15 +64,24 @@ clear
 EOF
 	chmod a+x etc/init.d/rcS bin/*
 
-  cp ../examples/inittab etc/
+	cat <<EOF >etc/inittab
+::sysinit:/etc/init.d/rcS
+::once:-/bin/sh
+::ctrlaltdel:/sbin/reboot
+::ctrlaltbreak:/sbin/poweroff
+#::shutdown:/bin/umount -a -r
+#::shutdown:/sbin/swapoff -a
+EOF
+	# cp ../examples/inittab etc/
 
-  cp ../examples/udhcp/simple.script usr/share/udhcpc/default.script
+	cp ../examples/udhcp/simple.script usr/share/udhcpc/default.script
 }
 
 KERNEL=../linux
 BUSYBOX=../busybox
 KERNEL_REPO=git@github.com:Rust-for-Linux/linux.git
 BUSYBOX_REPO=git@github.com:mirror/busybox.git
+CURRENT_DIR=$PWD
 
 # ./scripts/setup -k /path/to/linux -b /path/to/busybox --busybox-repo repo --kernel-repo repo
 while [ "$1" != "" ]; do

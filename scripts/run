@@ -39,8 +39,6 @@ while getopts "b:k:" opt; do
 	esac
 done
 
-echo "pwd: $(pwd)"
-
 # First, whe should build copy all of the .ko files to the busybox/_install directory so that they can be loaded
 # by the kernel.
 find . -name "*.ko" -exec cp {} "$BUSYBOX"/_install/ \;
@@ -54,11 +52,12 @@ popd || exit
 # now, we run the kernel in qemu
 qemu-system-x86_64 \
 	-kernel "$KERNEL"/vmlinux \
+  -append "console=ttyS0,115200 root=/dev/ram0 loglevel=3" \
 	-initrd "$BUSYBOX"/initramfs.img \
 	-nographic \
 	-machine q35 \
 	-enable-kvm \
 	-device intel-iommu \
 	-cpu host \
-	-m 4G \
+	-m 1G \
   -nic user,model=rtl8139,hostfwd=tcp::5555-:23,hostfwd=tcp::5556-:8080
