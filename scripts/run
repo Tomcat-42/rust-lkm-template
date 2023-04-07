@@ -39,9 +39,11 @@ while getopts "b:k:" opt; do
 	esac
 done
 
+echo "pwd: $(pwd)"
+
 # First, whe should build copy all of the .ko files to the busybox/_install directory so that they can be loaded
 # by the kernel.
-find "$KERNEL" -name "*.ko" -exec cp {} "$BUSYBOX"/_install/lib/modules/ \;
+find . -name "*.ko" -exec cp {} "$BUSYBOX"/_install/ \;
 
 # now, we generate the initramfs
 pushd "$BUSYBOX"/_install || exit
@@ -59,4 +61,4 @@ qemu-system-x86_64 \
 	-device intel-iommu \
 	-cpu host \
 	-m 4G \
-	-net nic -nic user,model=rtl8139,hostfwd=tcp::5555-:23,hostfwd=tcp::5556-:8080
+  -nic user,model=rtl8139,hostfwd=tcp::5555-:23,hostfwd=tcp::5556-:8080

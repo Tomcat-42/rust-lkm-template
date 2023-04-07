@@ -15,6 +15,14 @@ The default paths for scripts in this template are:
 So, you should have a `KERNEL` dir with a rust enabled kernel already built and
 a `BUSYBOX` dir with a **ALREADY** built and configured busybox.
 
+For automating the setup of the environment, run the `setup` script:
+
+```bash
+./scripts/setup
+```
+
+Refer to the script for more info.
+
 ## Building
 
 I wrote a simple wrapper script for the `make` command for compiling this LKM.

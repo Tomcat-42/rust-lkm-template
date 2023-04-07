@@ -1,0 +1,141 @@
+#!/bin/bash
+
+usage() {
+	echo "Usage: $0 [-k /path/to/linux] [-b /path/to/busybox]"
+}
+
+# Are the command installed?
+instaled() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+# Are the git repo cloned?
+cloned() {
+	[ -d "$1" ]
+}
+
+# clone a git repo
+clone() {
+	git clone "$1" "$2"
+}
+
+setup_rust_in_kernel() {
+	rustup override set "$(scripts/min-tool-version.sh rustc)"
+	rustup component add rust-src rustfmt clippy
+	cargo install --locked --version "$(scripts/min-tool-version.sh bindgen)" bindgen
+}
+
+setup_kernel() {
+	# setup the kernel
+	cd "$KERNEL" || exit
+	make LLVM=1 CLIPPY=1 rustavailable
+	make LLVM=1 CLIPPY=1 defconfig qemu-busybox-min.config rust.config
+	yes "" | make LLVM=1 CLIPPY=1 -j"$(nproc)"
+}
+
+setup_busybox() {
+	# setup busybox
+	cd "$BUSYBOX" || exit
+	yes "" | make defconfig
+	sed -i 's/.*CONFIG_STATIC.*/CONFIG_STATIC=y/' .config
+	sed -i 's/.*CONFIG_STATIC_LIBGCC.*/CONFIG_STATIC_LIBGCC=y/' .config
+  yes "" | make oldconfig
+	yes "" | make -j"$(nproc)"
+  make install
+}
+
+config_rootfs() {
+	cd "$BUSYBOX"/_install || exit
+	mkdir -p usr/share/udhcpc/ etc/init.d/
+	cat <<EOF >etc/init.d/rcS
+mkdir -p /proc
+mount -t proc none /proc
+ifconfig lo up
+ifconfig eth0 up
+udhcpc -i eth0
+mount -t devtmpfs none /dev
+mkdir -p /dev/pts
+mount -t devpts nodev  /dev/pts
+telnetd -l /bin/sh
+clear
+EOF
+	chmod a+x etc/init.d/rcS bin/*
+
+  cp ../examples/inittab etc/
+
+  cp ../examples/udhcp/simple.script usr/share/udhcpc/default.script
+}
+
+KERNEL=../linux
+BUSYBOX=../busybox
+KERNEL_REPO=git@github.com:Rust-for-Linux/linux.git
+BUSYBOX_REPO=git@github.com:mirror/busybox.git
+
+# ./scripts/setup -k /path/to/linux -b /path/to/busybox --busybox-repo repo --kernel-repo repo
+while [ "$1" != "" ]; do
+	case $1 in
+	-k | --kernel)
+		shift
+		KERNEL=$1
+		;;
+	-b | --busybox)
+		shift
+		BUSYBOX=$1
+		;;
+	--kernel-repo)
+		shift
+		KERNEL_REPO=$1
+		;;
+	--busybox-repo)
+		shift
+		BUSYBOX_REPO=$1
+		;;
+	-h | --help)
+		usage
+		exit
+		;;
+	*)
+		usage
+		exit 1
+		;;
+	esac
+	shift
+done
+
+# this script is a helper to setup a rust linux kernel development environment
+# Please refer to the README.md for more information
+
+# install all the depts
+echo "Installing all the depts"
+sudo pacman -S --needed --noconfirm gdb qemu flex bison llvm llvm-libs clang libelf lld rustup rust-analyzer cpio gzip git make
+
+# install rustup
+echo "Installing rustup"
+if ! instaled rustup; then
+	curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+fi
+
+# if the kernel is not cloned, clone it
+echo "Checking if the kernel is cloned"
+if ! cloned "$KERNEL"; then
+	echo "Cloning the kernel"
+	clone "$KERNEL_REPO" "$KERNEL"
+fi
+
+# if the busybox is not cloned, clone it
+echo "Checking if busybox is cloned"
+if ! cloned "$BUSYBOX"; then
+	echo "Cloning busybox"
+	clone "$BUSYBOX_REPO" "$BUSYBOX"
+fi
+
+echo "Setting up the kernel"
+setup_kernel
+
+echo "Setting up busybox"
+setup_busybox
+
+echo "Setting up the rootfs"
+config_rootfs
+
+echo "Done! You can now run the kernel with: ./scripts/run"
