@@ -1,6 +1,6 @@
 # Rust Loadable Kernel Module Template
 
-## Environment Setup
+## Setup
 
 Note that you need to have a
 [_rust enabled_](https://tomcat0x42.me/linux/rust/2023/04/01/linux-kernel-rust-dev-environment.html)
@@ -31,7 +31,8 @@ It is located in the `scripts` directory. You can use it like this:
 ```bash
 ./scripts/build
 ./scripts/build -t clean
-./scripts/build -k /path/to/rust/enabled/kernel
+./scripts/build -t rust-analyzer
+./scripts/build -k /path/to/rust/enabled/kernel -b /path/to/busybox
 # ... and so on
 ```
 
@@ -63,6 +64,18 @@ First, build the LKM. Then, you can use the `run` script to run it in a qemu VM:
 
 This script will simply copy all the `.ko` files to the initramfs and run the
 VM.
+
+## Hot-reloading
+
+You can use the `hot-reload` script to hot-reload the LKM in the running VM:
+
+```bash
+./scripts/hot-reload
+```
+
+It uses the `cargo-watch` crate to watch for changes in the source code and then
+running `./scripts/build` to build the LKM and `./scripts/run` to run it in the
+VM. Please refer to the script for more info.
 
 ## References
 
