@@ -5,12 +5,12 @@ usage() {
 }
 
 requires() {
-  for i in "$@"; do
-    if ! command -v "$i" &> /dev/null; then
-      echo "Error: $i is required but not installed."
-      exit 1
-    fi
-  done
+	for i in "$@"; do
+		if ! command -v "$i" &>/dev/null; then
+			echo "Error: $i is required but not installed."
+			exit 1
+		fi
+	done
 }
 
 # Dependencies
@@ -44,15 +44,15 @@ done
 find . -name "*.ko" -exec cp {} "$BUSYBOX"/_install/ \;
 
 # now, we generate the initramfs
-pushd "$BUSYBOX"/_install || exit
-find . | cpio -o -H newc | gzip -9 > ../initramfs.img
+pushd "$BUSYBOX"/_install > /dev/null || exit
+find . | cpio -o -H newc | gzip -9 >../initramfs.img
 
-popd || exit
+popd > /dev/null || exit
 
 # now, we run the kernel in qemu
 qemu-system-x86_64 \
 	-kernel "$KERNEL"/vmlinux \
-  -append "console=ttyS0,115200 root=/dev/ram0 loglevel=3" \
+	-append "console=ttyS0,115200 root=/dev/ram0 loglevel=3" \
 	-initrd "$BUSYBOX"/initramfs.img \
 	-nographic \
 	-machine q35 \
@@ -60,4 +60,4 @@ qemu-system-x86_64 \
 	-device intel-iommu \
 	-cpu host \
 	-m 1G \
-  -nic user,model=rtl8139,hostfwd=tcp::5555-:23,hostfwd=tcp::5556-:8080
+	-nic user,model=rtl8139,hostfwd=tcp::5555-:23,hostfwd=tcp::5556-:8080
