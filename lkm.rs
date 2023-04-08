@@ -2,6 +2,10 @@
 
 //! Rust LKM Template
 
+mod module;
+
+use module::test;
+
 use kernel::prelude::*;
 
 module! {
@@ -17,6 +21,7 @@ struct RustLkmTemplate(&'static str);
 impl kernel::Module for RustLkmTemplate {
     fn init(_name: &'static CStr, _module: &'static ThisModule) -> Result<Self> {
         let message: &'static str = "Hello World!";
+        test();
         pr_info!("Rust LKM Template (init)\n");
         pr_info!("Am I built-in? {}\n", !cfg!(MODULE));
 
