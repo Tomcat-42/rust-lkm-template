@@ -17,4 +17,4 @@ requires() {
 }
 
 # Should run again if any *.rs file changes, Makefile changes, Kbuild changes or any file inside ./scripts changes
-cargo watch -q -c -N -s "./scripts/build && ./scripts/run && ./scripts/build -t clean" -w "$(find . -name "*.rs")" -w Makefile -w Kbuild -w ./scripts
+cargo watch --poll -q -c -N -s "./scripts/build && ./scripts/run && ./scripts/build -t clean" -w "$(find . -name "*.rs")" -w Makefile -w Kbuild -w ./scripts
