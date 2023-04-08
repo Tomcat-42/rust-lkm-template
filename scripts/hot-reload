@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# NOTE: for this script to work, you should have the `cargo-watch` crate installed
+# cargo install cargo-watch
+
+usage() {
+	echo "Usage: $0 [-b /path/to/busybox] [-k /path/to/kernel]"
+}
+
+requires() {
+	for i in "$@"; do
+		if ! command -v "$i" &>/dev/null; then
+			echo "Error: $i is required but not installed."
+			exit 1
+		fi
+	done
+}
+
+# Should run again if any *.rs file changes, Makefile changes, Kbuild changes or any file inside ./scripts changes
+cargo watch -q -c -N -s "./scripts/build && ./scripts/run && ./scripts/build -t clean" -w "$(find . -name "*.rs")" -w Makefile -w Kbuild -w ./scripts
